@@ -8,7 +8,7 @@ CONFIG=`echo $0 | sed -e "s/\/$NAME$/\//"`mybackup.config
 
 if [ -r $CONFIG ]
 then
-        . $CONFIG
+  . $CONFIG
 fi
 
 # ------ File logging ------------------------------------
@@ -18,10 +18,19 @@ exec 2>>$BKPLOGFILE
 date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
 echo Backup started
 
-# ------ Cleanup -----------------------------------------
-find $BKPDIR/ -mtime +$BKPDAYS -name 'dumps*' | xargs -l1 rm -f
+# ------ Cleanup & setup ---------------------------------
 
-cd $WORKDIR
+if [! -d $BKPDIR ]
+then
+  mkdir -p $BKPDIR
+fi
+
+if [! -d $WORKDIR ]
+then
+  mkdir -p $WORKDIR
+fi
+
+find $BKPDIR/ -mtime +$BKPDAYS -name 'dumps*' | xargs -l1 rm -f
 
 # ------ Backup process ----------------------------------
 date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
@@ -30,6 +39,8 @@ echo Dump started
 DBLIST=`mysqlshow --defaults-file=$MYCONF | egrep -v 'Databases|mysql|(information|performance)_schema|(^\+)' | sed -e 's/^|[ ]*//' | sed -e 's/[ ]*|$//' | tr '\n' ' '`
 
 SQLDUMPOPTS="--add-drop-table --lock-tables --complete-insert --quick --quote-names --routines"
+
+cd $WORKDIR
 
 for i in $DBLIST
 do
