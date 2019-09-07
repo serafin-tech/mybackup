@@ -1,0 +1,6 @@
+# crontab file to be located in /etc/cron.d
+
+MAILTO=root@localhost
+
+5 2   * * *   root    /opt/mybackup/mybackup
+
