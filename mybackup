@@ -1,0 +1,68 @@
+#!/bin/bash
+
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+
+# config
+NAME=`basename $0`
+CONFIG=`echo $0 | sed -e "s/\/$NAME$/\//"`mybackup.config
+
+if [ -r $CONFIG ]
+then
+        . $CONFIG
+fi
+
+# ------ File logging ------------------------------------
+exec 1>>$BKPLOGFILE
+exec 2>>$BKPLOGFILE
+
+date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
+echo Backup started
+
+# ------ Cleanup -----------------------------------------
+find $BKPDIR/ -mtime +$BKPDAYS -name 'dumps*' | xargs -l1 rm -f
+
+cd $WORKDIR
+
+# ------ Backup process ----------------------------------
+date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
+echo Dump started
+
+DBLIST=`mysqlshow --defaults-file=$MYCONF | egrep -v 'Databases|mysql|(information|performance)_schema|(^\+)' | sed -e 's/^|[ ]*//' | sed -e 's/[ ]*|$//' | tr '\n' ' '`
+
+SQLDUMPOPTS="--add-drop-table --lock-tables --complete-insert --quick --quote-names --routines"
+
+for i in $DBLIST
+do
+  date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
+  echo -n Schema $i...
+  mysqldump --defaults-file=$MYCONF --databases $i $SQLDUMPOPTS | gzip -9 > $WORKDIR/$i.sql.gz
+  echo done.
+done
+
+date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
+echo Dump completed
+
+# ------ Extra information - grants ----------------------
+date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
+echo -n Grants export...
+
+mysql --defaults-file=$MYCONF --silent --skip-column-names --batch --execute "select concat('\'',User,'\'@\'',Host,'\'') as User from mysql.user" |
+  sort |
+  while read u; do echo "-- $u"; mysql --defaults-file=$MYCONF --silent --skip-column-names --batch --execute "show grants for $u" | sed 's/$/;/' | sed 's/\\\\//g'; done |
+  grep -v root |
+  grep -v mysql |
+  grep -v debian |
+  grep -v ^-- > mysql-grants.sql
+
+echo done.
+
+# ------ Building backup bundle --------------------------
+FNAME=`date +'dumps_%Y%m%d_%H%M'`
+tar cf $BKPDIR/$FNAME.tar *
+
+rm -f $WORKDIR/*
+
+date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
+echo Backup completed
+# --------------------------------------------------------
+
