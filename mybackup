@@ -20,13 +20,11 @@ echo Backup started
 
 # ------ Cleanup & setup ---------------------------------
 
-if [! -d $BKPDIR ]
-then
+if [ ! -d $BKPDIR ]; then
   mkdir -p $BKPDIR
 fi
 
-if [! -d $WORKDIR ]
-then
+if [ ! -d $WORKDIR ]; then
   mkdir -p $WORKDIR
 fi
 
@@ -63,7 +61,7 @@ mysql --defaults-file=$MYCONF --silent --skip-column-names --batch --execute "se
   grep -v root |
   grep -v mysql |
   grep -v debian |
-  grep -v ^-- > mysql-grants.sql
+  grep -v ^-- > $WORKDIR/mysql-grants.sql
 
 echo done.
 
