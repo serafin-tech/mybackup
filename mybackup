@@ -36,7 +36,9 @@ echo Dump started
 
 DBLIST=`mysqlshow --defaults-file=$MYCONF | egrep -v 'Databases|mysql|(information|performance)_schema|(^\+)' | sed -e 's/^|[ ]*//' | sed -e 's/[ ]*|$//' | tr '\n' ' '`
 
-SQLDUMPOPTS="--add-drop-table --lock-tables --complete-insert --quick --quote-names --routines"
+IGNOREOPTS=`for i in \`cat mybackup.ignore\`; do echo -n "--ignore-table=$i "; done`
+
+SQLDUMPOPTS="--add-drop-table --lock-tables --complete-insert --quick --quote-names --routines $IGNOREOPTS"
 
 cd $WORKDIR
 
