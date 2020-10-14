@@ -17,44 +17,48 @@ exec 1>>$BKPLOGFILE
 exec 2>>$BKPLOGFILE
 
 date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
-echo Backup started
+echo "Backup started..."
 
 # ------ Cleanup & setup ---------------------------------
+
+date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
+echo -n "Removal of old backups..."
 
 if [ ! -d $BKPDIR ]; then
   mkdir -p $BKPDIR
 fi
 
-find $BKPDIR/ -mtime +$BKPDAYS  | xargs -l1 rm -f
-#rm -f $BKPDIR/*
+find $BKPDIR/ -mtime +$(($BKPDAYS-1)) -exec rm -fv '{}' ';'
+
+echo "done."
 
 # ------ Backup process ----------------------------------
 date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
-echo Dump started
+echo "Dump started"
 
-DBLIST=`mysqlshow --defaults-file=$MYCONF | egrep -v 'Databases|mysql|(information|performance)_schema|(^\+)' | sed -e 's/^|[ ]*//' | sed -e 's/[ ]*|$//' | tr '\n' ' '`
+DBLIST=`mysqlshow --defaults-file=$MYCONF | egrep -v 'Databases|mysql|information_schema|performance_schema|(^\+)' | sed -e 's/^|[ ]*//' | sed -e 's/[ ]*|$//' | tr '\n' ' '`
 
 IGNOREOPTS=`for i in \`cat $IGNORE\`; do echo -n "--ignore-table=$i "; done`
 
-SQLDUMPOPTS="--add-drop-table --lock-tables --complete-insert --quick --quote-names --routines $IGNOREOPTS"
+SQLDUMPOPTS="--add-drop-table --lock-tables --complete-insert --quick --quote-names --dump-date --events --triggers --routines $IGNOREOPTS"
 
 cd $BKPDIR
 
 for i in $DBLIST
 do
   date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
-  echo -n Schema $i...
+  echo -n "Schema $i..."
   OUTFILE=$i`date +'_%Y%m%d%H%M%S'`
   mysqldump --defaults-file=$MYCONF --databases $i $SQLDUMPOPTS | gzip > $BKPDIR/$OUTFILE.sql.gz
-  echo done.
+  echo "done."
 done
 
 date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
-echo Dump completed
+echo "Dump completed"
 
 # ------ Extra information - grants ----------------------
 date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
-echo -n Grants export...
+echo -n "Grants export..."
 
 mysql --defaults-file=$MYCONF --silent --skip-column-names --batch --execute "select concat('\'',User,'\'@\'',Host,'\'') as User from mysql.user" |
   sort |
@@ -64,9 +68,9 @@ mysql --defaults-file=$MYCONF --silent --skip-column-names --batch --execute "se
   grep -v debian |
   grep -v ^-- > $BKPDIR/mysql-grants.sql
 
-echo done.
+echo "done."
 
 date +'%Y-%m-%d %H:%M:%S ' | tr -d '\n'
-echo Backup completed
+echo "Backup completed."
 # --------------------------------------------------------
 
